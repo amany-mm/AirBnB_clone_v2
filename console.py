@@ -2,6 +2,11 @@
 """ Console Module """
 import cmd
 import sys
+import uuid
+import re
+import os
+from datetime import datetime
+
 from models.base_model import BaseModel
 from models.__init__ import storage
 from models.user import User
@@ -19,16 +24,16 @@ class HBNBCommand(cmd.Cmd):
     prompt = '(hbnb) ' if sys.__stdin__.isatty() else ''
 
     classes = {
-               'BaseModel': BaseModel, 'User': User, 'Place': Place,
-               'State': State, 'City': City, 'Amenity': Amenity,
-               'Review': Review
-              }
+        'BaseModel': BaseModel, 'User': User, 'Place': Place,
+        'State': State, 'City': City, 'Amenity': Amenity,
+        'Review': Review
+    }
     dot_cmds = ['all', 'count', 'show', 'destroy', 'update']
     types = {
-             'number_rooms': int, 'number_bathrooms': int,
-             'max_guest': int, 'price_by_night': int,
-             'latitude': float, 'longitude': float
-            }
+        'number_rooms': int, 'number_bathrooms': int,
+        'max_guest': int, 'price_by_night': int,
+        'latitude': float, 'longitude': float
+    }
 
     def preloop(self):
         """Prints if isatty is false"""
@@ -73,7 +78,7 @@ class HBNBCommand(cmd.Cmd):
                 pline = pline[2].strip()  # pline is now str
                 if pline:
                     # check for *args or **kwargs
-                    if pline[0] is '{' and pline[-1] is'}'\
+                    if pline[0] is '{' and pline[-1] is '}'\
                             and type(eval(pline)) is dict:
                         _args = pline
                     else:
@@ -115,16 +120,75 @@ class HBNBCommand(cmd.Cmd):
 
     def do_create(self, args):
         """ Create an object of any class"""
-        if not args:
+        all_attr = ('id', 'created_at', 'updated_at', '__class__')
+        class_name = ''
+        class_pat = r'(?P<name>(?:[a-zA-Z]|_)(?:[a-zA-Z]|\d|_)*)'
+        class_match = re.match(class_pat, args)
+        objects = {}
+
+        # find the right Command syntax
+        if class_match is not None:
+            class_name = class_match.group('name')
+            str_param = args[len(class_name):].strip()
+            params = str_param.split(' ')
+
+            str_pat = r'(?P<t_str>"([^"]|\")*")'
+            fp_pat = r'(?P<t_float>[-+]?\d+\.\d+)'
+            int_pat = r'(?P<t_int>[-+]?\d+)'
+            full_pat = '{}=({}|{}|{})'.format(class_pat, str_pat,
+                                              fp_pat, int_pat)
+
+            # check syntax of key and value pairs
+            for param in params:
+                param_match = re.fullmatch(full_pat, param)
+                if param_match is not None:
+                    key = param_match.group('name')
+                    str_value = param_match.group('t_str')
+                    fp_value = param_match.group('t_float')
+                    int_value = param_match.group('t_int')
+
+                    # address the string value syntax
+                    if str_value is not None:
+                        objects[key] = str_value[1:-1].replace('_', ' ')
+                    # address the floating point value syntax
+                    if fp_value is not None:
+                        objects[key] = float(fp_value)
+                    # address the integer value syntax
+                    if int_value is not None:
+                        objects[key] = int(int_value)
+        else:
+            class_name = args
+
+        if not class_name:
             print("** class name missing **")
             return
-        elif args not in HBNBCommand.classes:
+        elif class_name not in HBNBCommand.classes:
             print("** class doesn't exist **")
             return
-        new_instance = HBNBCommand.classes[args]()
-        storage.save()
-        print(new_instance.id)
-        storage.save()
+
+        # save parsed objects using mysqldb'
+        if os.getenv("HBNB_TYPE_STORAGE") == 'db':
+            if not hasattr(objects, 'id'):
+                objects['id'] = str(uuid.uuid4())
+
+            if not hasattr(objects, 'created_at'):
+                objects['created_at'] = str(datetime.now())
+
+            if not hasattr(objects, 'updated_at'):
+                objects['updated_at'] = str(datetime.now())
+
+            # save to db storage
+            new_attr = HBNBCommand.classes[class_name](**objects)
+            new_attr.save()
+            print(new_attr.id)
+        else:
+            # save to filestorage
+            new_attr = HBNBCommand.classes[class_name]()
+            for key, value in objects.items():
+                if key not in all_attr:
+                    setattr(new_attr, key, value)
+            new_attr.save()
+            print(new_attr.id)
 
     def help_create(self):
         """ Help information for the create method """
@@ -187,7 +251,7 @@ class HBNBCommand(cmd.Cmd):
         key = c_name + "." + c_id
 
         try:
-            del(storage.all()[key])
+            del (storage.all()[key])
             storage.save()
         except KeyError:
             print("** no instance found **")
@@ -319,6 +383,7 @@ class HBNBCommand(cmd.Cmd):
         """ Help information for the update class """
         print("Updates an object with new information")
         print("Usage: update <className> <id> <attName> <attVal>\n")
+
 
 if __name__ == "__main__":
     HBNBCommand().cmdloop()
