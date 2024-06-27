@@ -1,10 +1,10 @@
 #!/usr/bin/python3
 """ Console Module """
+import os
+import uuid
 import cmd
 import sys
-import uuid
 import re
-import os
 from datetime import datetime
 
 from models.base_model import BaseModel
@@ -78,7 +78,7 @@ class HBNBCommand(cmd.Cmd):
                 pline = pline[2].strip()  # pline is now str
                 if pline:
                     # check for *args or **kwargs
-                    if pline[0] is '{' and pline[-1] is '}'\
+                    if pline[0] == '{' and pline[-1] == '}'\
                             and type(eval(pline)) is dict:
                         _args = pline
                     else:
@@ -86,7 +86,7 @@ class HBNBCommand(cmd.Cmd):
                         # _args = _args.replace('\"', '')
             line = ' '.join([_cmd, _cls, _id, _args])
 
-        except Exception as mess:
+        except Exception:
             pass
         finally:
             return line
@@ -125,19 +125,16 @@ class HBNBCommand(cmd.Cmd):
         class_pat = r'(?P<name>(?:[a-zA-Z]|_)(?:[a-zA-Z]|\d|_)*)'
         class_match = re.match(class_pat, args)
         objects = {}
-
         # find the right Command syntax
         if class_match is not None:
             class_name = class_match.group('name')
             str_param = args[len(class_name):].strip()
             params = str_param.split(' ')
-
             str_pat = r'(?P<t_str>"([^"]|\")*")'
             fp_pat = r'(?P<t_float>[-+]?\d+\.\d+)'
             int_pat = r'(?P<t_int>[-+]?\d+)'
             full_pat = '{}=({}|{}|{})'.format(class_pat, str_pat,
                                               fp_pat, int_pat)
-
             # check syntax of key and value pairs
             for param in params:
                 param_match = re.fullmatch(full_pat, param)
@@ -146,7 +143,6 @@ class HBNBCommand(cmd.Cmd):
                     str_value = param_match.group('t_str')
                     fp_value = param_match.group('t_float')
                     int_value = param_match.group('t_int')
-
                     # address the string value syntax
                     if str_value is not None:
                         objects[key] = str_value[1:-1].replace('_', ' ')
@@ -158,14 +154,12 @@ class HBNBCommand(cmd.Cmd):
                         objects[key] = int(int_value)
         else:
             class_name = args
-
         if not class_name:
             print("** class name missing **")
             return
         elif class_name not in HBNBCommand.classes:
             print("** class doesn't exist **")
             return
-
         # save parsed objects using mysqldb'
         if os.getenv("HBNB_TYPE_STORAGE") == 'db':
             if not hasattr(objects, 'id'):
@@ -176,7 +170,6 @@ class HBNBCommand(cmd.Cmd):
 
             if not hasattr(objects, 'updated_at'):
                 objects['updated_at'] = str(datetime.now())
-
             # save to db storage
             new_attr = HBNBCommand.classes[class_name](**objects)
             new_attr.save()
@@ -219,7 +212,7 @@ class HBNBCommand(cmd.Cmd):
 
         key = c_name + "." + c_id
         try:
-            print(storage._FileStorage__objects[key])
+            print(storage.all()[key])
         except KeyError:
             print("** no instance found **")
 
@@ -251,7 +244,7 @@ class HBNBCommand(cmd.Cmd):
         key = c_name + "." + c_id
 
         try:
-            del (storage.all()[key])
+            storage.delete(storage.all()[key])
             storage.save()
         except KeyError:
             print("** no instance found **")
@@ -270,11 +263,11 @@ class HBNBCommand(cmd.Cmd):
             if args not in HBNBCommand.classes:
                 print("** class doesn't exist **")
                 return
-            for k, v in storage._FileStorage__objects.items():
+            for k, v in storage.all().items():
                 if k.split('.')[0] == args:
                     print_list.append(str(v))
         else:
-            for k, v in storage._FileStorage__objects.items():
+            for k, v in storage.all().items():
                 print_list.append(str(v))
 
         print(print_list)
@@ -287,7 +280,7 @@ class HBNBCommand(cmd.Cmd):
     def do_count(self, args):
         """Count current number of class instances"""
         count = 0
-        for k, v in storage._FileStorage__objects.items():
+        for k, v in storage.all().items():
             if args == k.split('.')[0]:
                 count += 1
         print(count)
@@ -336,7 +329,7 @@ class HBNBCommand(cmd.Cmd):
                 args.append(v)
         else:  # isolate args
             args = args[2]
-            if args and args[0] is '\"':  # check for quoted arg
+            if args and args[0] == '\"':  # check for quoted arg
                 second_quote = args.find('\"', 1)
                 att_name = args[1:second_quote]
                 args = args[second_quote + 1:]
@@ -344,10 +337,10 @@ class HBNBCommand(cmd.Cmd):
             args = args.partition(' ')
 
             # if att_name was not quoted arg
-            if not att_name and args[0] is not ' ':
+            if not att_name and args[0] != ' ':
                 att_name = args[0]
             # check for quoted val arg
-            if args[2] and args[2][0] is '\"':
+            if args[2] and args[2][0] == '\"':
                 att_val = args[2][1:args[2].find('\"', 1)]
 
             # if att_val was not quoted arg

@@ -22,8 +22,10 @@ class BaseModel:
 
     if getenv("HBNB_TYPE_STORAGE") == 'db':
         id = Column(String(60), nullable=False, primary_key=True)
-        created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-        updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+        created_at = Column(DateTime, nullable=False,
+                            default=datetime.utcnow())
+        updated_at = Column(DateTime, nullable=False,
+                            default=datetime.utcnow())
 
     def __init__(self, *args, **kwargs):
         """Instatntiates a new model"""
@@ -52,25 +54,17 @@ class BaseModel:
         models.storage.new(self)
         models.storage.save()
 
-    def to_dict(self, save_to_disk=False):
+    def to_dict(self):
         """Convert instance into dict format"""
-        new_dict = self.__dict__.copy()
-        if "created_at" in new_dict:
-            new_dict["created_at"] = new_dict["created_at"].isoformat()
-        if "updated_at" in new_dict:
-            new_dict["updated_at"] = new_dict["updated_at"].isoformat()
-        if '_password' in new_dict:
-            new_dict['password'] = new_dict['_password']
-            new_dict.pop('_password', None)
-        if 'amenities' in new_dict:
-            new_dict.pop('amenities', None)
-        if 'reviews' in new_dict:
-            new_dict.pop('reviews', None)
-        new_dict["__class__"] = self.__class__.__name__
-        new_dict.pop('_sa_instance_state', None)
-        if not save_to_disk:
-            new_dict.pop('password', None)
-        return new_dict
+        dictionary = {}
+        dictionary.update(self.__dict__)
+        dictionary.update(
+            {'__class__': (str(type(self)).split('.')[-1]).split('\'')[0]}
+        )
+        dictionary['created_at'] = self.created_at.isoformat()
+        dictionary['updated_at'] = self.updated_at.isoformat()
+        dictionary.pop("_sa_instance_state", None)
+        return dictionary
 
     def delete(self):
         """Function that deletes the current instance from the storage"""
