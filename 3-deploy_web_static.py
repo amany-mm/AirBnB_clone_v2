@@ -7,15 +7,16 @@ Fabric script methods:
 Usage:
     fab -f 3-deploy_web_static.py deploy -i my_ssh_private_key -u ubuntu
 """
-from fabric.api import local, env, put, run
-from datetime import datetime
 import os
+from datetime import datetime
+from fabric.api import local, env, put, run
+
 
 env.hosts = ['52.207.208.230', '18.204.11.104']
 
 
 def do_pack():
-    """ Generate .tgz archive of web_static/ folder. """
+    """A function that generates .tgz archive from contents of web_static"""
     dt = datetime.utcnow()
     file = "versions/web_static_{}{}{}{}{}{}.tgz".format(dt.year,
                                                          dt.month,
@@ -26,14 +27,13 @@ def do_pack():
     if os.path.isdir("versions") is False:
         if local("mkdir -p versions").failed is True:
             return None
-
     if local("tar -cvzf {} web_static".format(file)).failed is True:
         return None
     return file
 
 
 def do_deploy(archive_path):
-    """ Deploy archive to web server """
+    """Function to distribute an archive to web servers"""
     if os.path.isfile(archive_path) is False:
         return False
     file = archive_path.split("/")[-1]
