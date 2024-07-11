@@ -1,9 +1,7 @@
 #!/usr/bin/python3
 """
-Fabric script (based on the file 1-pack_web_static.py)
-that distributes an archive to your web servers,
-using the function do_deploy.
-
+Fabric script method:
+    do_deploy: deploys archive to web servers
 Usage:
     fab -f 2-do_deploy_web_static.py
     do_deploy:archive_path=versions/web_static_20240711003959.tgz
@@ -18,7 +16,8 @@ env.key_filename = '~/.ssh/school'
 
 
 def do_deploy(archive_path):
-    """Deploy web files to server
+    """
+    Deploy archive to web server
     """
     try:
         if not (path.exists(archive_path)):
@@ -47,7 +46,7 @@ web_static_{}/web_static'
 
         run('sudo ln -s /data/web_static/releases/\
 web_static_{}/ /data/web_static/current'.format(timestamp))
-    except:
+    except Exception:
         return False
 
     return True
